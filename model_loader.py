@@ -1,23 +1,18 @@
 import os
-import ctranslate2
-from transformers import AutoTokenizer
-from huggingface_hub import snapshot_download
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 class NLLBTranslator:
-    def __init__(self, model_name="michaelfeil/ct2fast-nllb-200-distilled-600M"):
+    def __init__(self, model_name="facebook/nllb-200-distilled-600M"):
         """
-        Initializes the CTranslate2 model. 
-        We use an int8 quantized NLLB model which is extremely fast and lightweight for CPU.
+        Initializes the Native Transformers model.
+        Using pure PyTorch guarantees 100% compatibility with any Docker/Cloud environment.
         """
-        print(f"Downloading/Loading model {model_name}...")
-        # Download the CTranslate2 formatted model from Hugging Face Hub
-        self.model_path = snapshot_download(repo_id=model_name)
+        print(f"Loading Native PyTorch model {model_name}... This might take a moment.")
         
-        # Load tokenizer from the original NLLB model
-        self.tokenizer = AutoTokenizer.from_pretrained("facebook/nllb-200-distilled-600M", src_lang="eng_Latn")
+        # Load tokenizer and model directly from huggingface (native PyTorch)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
         
-        # Load the CTranslate2 model specifically optimized for CPU (perfect for Railway)
-        self.translator = ctranslate2.Translator(self.model_path, device="cpu", compute_type="int8")
         print("Model loaded successfully!")
 
     def translate(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -25,18 +20,22 @@ class NLLBTranslator:
         Translates text from source_lang to target_lang.
         Language codes follow the FLORES-200 format (e.g., eng_Latn, sin_Sinh, tam_Taml).
         """
+        # Set source language
         self.tokenizer.src_lang = source_lang
-        # Tokenize the input text
-        source = self.tokenizer.convert_ids_to_tokens(self.tokenizer.encode(text))
         
-        # Define target language prefix
-        target_prefix = [target_lang]
+        # Prepare inputs
+        inputs = self.tokenizer(text, return_tensors="pt")
         
-        # Run inference
-        results = self.translator.translate_batch([source], target_prefix=[target_prefix])
+        # Get target language token ID
+        forced_bos_token_id = self.tokenizer.lang_code_to_id[target_lang]
         
-        # Decode the output
-        target = results[0].hypotheses[0][1:]
-        translated_text = self.tokenizer.decode(self.tokenizer.convert_tokens_to_ids(target))
+        # Generate translation
+        translated_tokens = self.model.generate(
+            **inputs, 
+            forced_bos_token_id=forced_bos_token_id, 
+            max_length=250
+        )
         
+        # Decode and return
+        translated_text = self.tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
         return translated_text

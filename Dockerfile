@@ -1,13 +1,16 @@
-# Use Python 3.10 slim image for a smaller footprint
+# Use Python 3.10 slim image
 FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install basic system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch CPU directly first to save space (no huge GPU drivers)
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 
 # Copy requirements and install them
 COPY requirements.txt .
