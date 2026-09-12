@@ -4,19 +4,24 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (required for some Python packages like sentencepiece)
+# Install system dependencies AND execstack to fix Railway security policies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    execstack \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install them
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# FIX: Clear the executable stack flag from ctranslate2 shared libraries
+# Railway blocks libraries that request executable stack memory for security reasons.
+RUN find /usr/local/lib/python3.10/site-packages/ctranslate2 -name "*.so*" -exec execstack -c {} \;
+
 # Copy the application code
 COPY . .
 
-# Expose port (Railway will provide $PORT, but we default to 8000)
+# Expose port
 ENV PORT=8000
 EXPOSE 8000
 
