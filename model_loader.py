@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 from huggingface_hub import snapshot_download
 
 class NLLBTranslator:
-    def __init__(self, model_name="siddharth-kumar/nllb-200-distilled-600M-ct2-int8"):
+    def __init__(self, model_name="michaelfeil/ct2fast-nllb-200-distilled-600M"):
         """
         Initializes the CTranslate2 model. 
         We use an int8 quantized NLLB model which is extremely fast and lightweight for CPU.
