@@ -1,5 +1,5 @@
-# Use Python 3.10 slim image for a smaller footprint
-FROM python:3.10-slim
+# Use Python 3.10 slim bullseye image (Debian 11) where execstack is available
+FROM python:3.10-slim-bullseye
 
 # Set working directory
 WORKDIR /app
